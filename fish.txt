@@ -1,0 +1,73 @@
+# fish.txt — ASCII Aquarium sprite definitions
+#
+# FORMAT
+# ──────
+# Each fish is a named block:
+#
+#   [fish_name]
+#   right = ><>
+#   left  = <><
+#   color = yellow
+#
+# Fields:
+#   right  — sprite facing right  (required)
+#   left   — sprite facing left   (required)
+#   color  — one of: yellow, white, green, cyan, magenta, red  (optional, default: random)
+#
+# Lines starting with # are comments.  Blank lines between blocks are fine.
+# Add as many fish as you like — the aquarium picks from all of them at random.
+
+[classic]
+right = ><>
+left  = <><
+color = cyan
+
+[arrow]
+right = >->
+left  = <-<
+color = white
+
+[brace]
+right = }-{
+left  = {-}
+color = green
+
+[fancy]
+right = ><((°>
+left  = <°))><
+color = yellow
+
+[dot]
+right = °><>
+left  = <>< °
+color = magenta
+
+[shark]
+right = }>~~>
+left  = <~~{<
+color = white
+
+[puffer]
+right = ><))°>
+left  = <°((<
+color = yellow
+
+[eel]
+right = ~~~~~>
+left  = <~~~~~
+color = green
+
+[tropical]
+right = ><(((º>
+left  = <º)))<
+color = cyan
+
+[tiny]
+right = >}
+left  = {<
+color = red
+
+[blob]
+right = (@)>
+left  = <(@)
+color = magenta
