@@ -175,47 +175,94 @@ class SpriteLibrary:
             return
         current = {}
         color_keys = list(_COLOR_NAMES.keys())
-        # Keys accepted from file: right, right2, right3, left, left2, left3, color
-        _row_keys = {"right", "right2", "right3", "left", "left2", "left3"}
         with path.open(encoding="utf-8") as f:
             for raw in f:
-                line = raw.rstrip("\n").strip()
-                if not line or line.startswith("#"):
+                line = raw.rstrip("\n")
+                stripped = line.strip()
+                if not stripped or stripped.startswith("#"):
                     continue
-                if line.startswith("[") and line.endswith("]"):
-                    if current.get("right") and current.get("left"):
+                if stripped.startswith("[") and stripped.endswith("]"):
+                    if current.get("right") is not None and current.get("left") is not None:
                         self._commit(current)
                     current = {}
                     continue
-                if "=" not in line:
+                if "=" not in stripped:
                     continue
-                key, _, val = line.partition("=")
-                key = key.strip().lower()
-                val = val.strip()
-                if key in _row_keys:
+
+                # Key is always the stripped left side
+                eq  = stripped.index("=")
+                key = stripped[:eq].strip().lower()
+
+                # Value: take everything after the '=' in the STRIPPED line so
+                # that indentation of the key is ignored, but any spaces that
+                # are part of the sprite value (including leading spaces in the
+                # value itself) are kept.
+                raw_val = stripped[eq + 1:]
+                # Strip exactly one optional leading space (the separator space
+                # between '=' and the value), then keep the rest verbatim.
+                val = raw_val[1:] if raw_val.startswith(" ") else raw_val
+
+                if key == "right" or (key.startswith("right") and key[5:].isdigit()):
                     current[key] = val
-                elif key == "color" and val.lower() in color_keys:
-                    current["color_idx"] = color_keys.index(val.lower()) % len(CP_FISH)
-        if current.get("right") and current.get("left"):
+                elif key == "left" or (key.startswith("left") and key[4:].isdigit()):
+                    current[key] = val
+                elif key == "color" and val.strip().lower() in color_keys:
+                    current["color_idx"] = color_keys.index(val.strip().lower()) % len(CP_FISH)
+
+        if current.get("right") is not None and current.get("left") is not None:
             self._commit(current)
 
+    @staticmethod
+    def _collect_rows(d: dict, prefix: str) -> list[str]:
+        """
+        Collect rows for 'right' or 'left' into a contiguous ordered list.
+
+        Supports two conventions:
+
+        A) New sequential (1-indexed suffixes from 1):
+               right  = top row
+               right1 = second row
+               right2 = third row ...
+
+        B) Legacy (2-indexed from 2, matching old right2/right3 style):
+               right  = top row
+               right2 = second row
+               right3 = third row ...
+
+        Both are reduced to a simple [row0, row1, row2, ...] list with no gaps.
+        The bare key is always row 0. Numbered keys are sorted and appended in order.
+        """
+        bare = d.get(prefix)
+        numbered: list[tuple[int, str]] = []
+
+        for k, v in d.items():
+            if k == prefix:
+                continue
+            suffix = k[len(prefix):]
+            if suffix.isdigit():
+                numbered.append((int(suffix), v))
+
+        # Sort by numeric suffix; discard the suffix — we only care about order
+        numbered.sort(key=lambda t: t[0])
+        sorted_vals = [v for _, v in numbered]
+
+        if bare is not None:
+            return [bare] + sorted_vals
+        return sorted_vals
+
     def _commit(self, d: dict):
-        # Build ordered row lists: [row1, row2, row3] — row2/row3 optional
-        rows_right = [d["right"]]
-        rows_left  = [d["left"]]
-        if "right2" in d:
-            rows_right.append(d["right2"])
-        if "right3" in d:
-            rows_right.append(d.get("right3", ""))
-        if "left2" in d:
-            rows_left.append(d["left2"])
-        if "left3" in d:
-            rows_left.append(d.get("left3", ""))
-        # Pad shorter direction to the same row count (blank rows)
+        rows_right = self._collect_rows(d, "right")
+        rows_left  = self._collect_rows(d, "left")
+
+        if not rows_right or not rows_left:
+            return   # malformed block — skip
+
+        # Pad to equal height
         while len(rows_right) < len(rows_left):
             rows_right.append("")
         while len(rows_left) < len(rows_right):
             rows_left.append("")
+
         self.sprites.append({
             "rows_right": rows_right,
             "rows_left":  rows_left,
@@ -278,17 +325,16 @@ class Fish:
     def __init__(self, x: float, y: int, height: int, width: int,
                  lib: SpriteLibrary, cfg: Config):
         spr               = lib.random_sprite()
-        self.rows_right   = spr["rows_right"]   # list of strings, top→bottom
+        self.rows_right   = spr["rows_right"]
         self.rows_left    = spr["rows_left"]
         self.color_idx    = spr["color_idx"]
         self.direction    = random.choice([-1, 1])
         self.sprite_rows  = self.rows_right if self.direction == 1 else self.rows_left
         self.num_rows     = len(self.rows_right)
-        # Length = widest row across both directions
-        self.length       = max(
-            max(len(r) for r in self.rows_right),
-            max(len(r) for r in self.rows_left),
-        )
+        # Width = widest row across both directions, counting every character
+        # including leading/trailing spaces (they are part of the sprite shape)
+        all_rows = self.rows_right + self.rows_left
+        self.length = max((len(r) for r in all_rows if r), default=1)
         self.x            = float(x)
         self.y            = y
         self.speed        = random.uniform(cfg.fish_speed_min, cfg.fish_speed_max)
@@ -303,8 +349,8 @@ class Fish:
             self.sprite_rows = self.rows_right
         if random.random() < 0.008:
             self.y += random.choice([-1, 1])
-        # Keep entire fish body inside the tank (account for multi-row height)
-        self.y = max(1, min(height - 2 - self.num_rows, self.y))
+        # Keep entire fish body (all rows) inside the tank walls
+        self.y = max(1, min(max(1, height - 2 - self.num_rows), self.y))
 
     @property
     def ix(self) -> int:
@@ -494,12 +540,25 @@ class DoubleBuffer:
              transparent: bool = False):
         """Write a string into the back buffer.
 
-        If transparent=True (used by fish sprites) space characters are skipped
-        so the water background shows through the fish body.
+        When transparent=True (fish sprites):
+          - Leading spaces are positional — they are written as water-background
+            spaces so the sprite row is correctly offset from fish.ix.
+          - Interior/trailing spaces are skipped so the water background already
+            drawn beneath the fish shows through the body.
+
+        This correctly handles tall multi-row sprites like the stingray where
+        rows such as '           /\\' rely on leading spaces for alignment.
         """
+        if not transparent:
+            for i, ch in enumerate(text):
+                self.put(y, x + i, ch, attr)
+            return
+
+        # Find where leading spaces end
+        leading = len(text) - len(text.lstrip(" "))
         for i, ch in enumerate(text):
-            if transparent and ch == " ":
-                continue
+            if ch == " " and i >= leading:
+                continue   # interior/trailing space — transparent
             self.put(y, x + i, ch, attr)
 
     def invalidate(self):
@@ -822,4 +881,3 @@ if __name__ == "__main__":
         curses.wrapper(main, initial_theme=args.theme or "")
     except KeyboardInterrupt:
         pass
-    print("Thanks for visiting the aquarium! 🐟")

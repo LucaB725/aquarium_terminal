@@ -1,0 +1,22 @@
+# zen/fish.txt
+# Varying sizes of Koi and meditative forms — slow, clean lines, all white or cyan
+
+[stingray]
+right =           /\
+right2=         ./  |
+right3=        /     \
+right4= ------<      :|
+right5=        \     /
+right6=         '\  |
+right7=           \/
+left =     /\
+left2=   ./  |
+left3=  /     \
+left4= |:      >------
+left5=  \     /
+left6=   '\  |
+left7=     \/
+color = cyan
+
+
+
