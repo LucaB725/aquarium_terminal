@@ -1,0 +1,88 @@
+# goldfish_bowl/fish.txt
+# Nothing but goldfish — from tiny feeder fish to prize-winning fantails
+
+# ── 1-row ─────────────────────────────────────────────────────────────────────
+
+[feeder]
+right = >o>
+left  = <o<
+color = red
+
+[common]
+right = ><(·>
+left  = <·)><
+color = yellow
+
+[comet]
+right = ~~·><>
+left  = ><·~~
+color = red
+
+[shubunkin]
+right = >·(°>
+left  = <°)·<
+color = magenta
+
+[ryukin_small]
+right = >{o}>
+left  = <{o{<
+color = yellow
+
+# ── 2-row ─────────────────────────────────────────────────────────────────────
+
+[fantail]
+right  = ·><(°>·
+right2 = ~~ ))) 
+left   = ·<°)><·
+left2  =  ((( ~~
+color  = yellow
+
+[oranda]
+right  = ·{·><·>
+right2 =  ~~~~~~
+left   = <·><·}·
+left2  = ~~~~~~ 
+color  = red
+
+[telescope]
+right  = (@)·><>
+right2 =   ~~~~~
+left   = ><·(@) 
+left2  = ~~~~~  
+color  = magenta
+
+[bubble_eye]
+right  = (o)·><>
+right2 =  ·~~~~~
+left   = ><·(o) 
+left2  = ~~~~~·  
+color  = yellow
+
+# ── 3-row ─────────────────────────────────────────────────────────────────────
+
+[lionhead]
+right  =  __/~~
+right2 = |·°  }=>
+right3 =  ~~\~~
+left   =  ~~\__
+left2  = <=o{  °·|
+left3  =  ~~/__
+color  = red
+
+[ranchu]
+right  =  _/\__
+right2 = |>°(·}=>
+right3 =  \/~~~
+left   =  __/\_
+left2  = <=o{·)°<|
+left3  =  ~~~\/
+color  = yellow
+
+[pearlscale]
+right  =  /°°°\
+right2 = |> ·· }=>
+right3 =  \°°°/
+left   =  /°°°\
+left2  = <=o{ ·· <|
+left3  =  \°°°/
+color  = white

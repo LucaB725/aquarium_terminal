@@ -1,0 +1,11 @@
+# deep_sea/scenery.txt — sparse and eerie: hydrothermal vents, no chest
+seaweed  0.08
+seaweed  0.55
+seaweed  0.91
+rock     0.20
+rock     0.40
+rock     0.70
+rock     0.85
+coral    0.30
+coral    0.60
+chest    0.48

@@ -1,0 +1,14 @@
+# zen/scenery.txt — minimalist Iwagumi style: carefully arranged stones and sparse grass
+
+# Left-side focal point (main stone grouping and accent grass)
+seaweed  0.12
+rock     0.25
+rock     0.30
+
+# Center negative space breaker
+seaweed  0.48
+
+# Right-side balancing stone and trailing grass
+rock     0.75
+seaweed  0.82
+seaweed  0.88

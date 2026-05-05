@@ -1,0 +1,97 @@
+# deep_sea/fish.txt
+# Creatures of the abyss — slow, large, and unsettling
+
+# ── 1-row ─────────────────────────────────────────────────────────────────────
+
+[viperfish]
+right = *·>~~>
+left  = <~~<·*
+color = cyan
+
+[lanternfish]
+right = °><·>
+left  = <·><°
+color = white
+
+[gulper]
+right = }===·>
+left  = <·==={
+color = magenta
+
+[dragonfish]
+right = !·>~·~>
+left  = <~·~<·!
+color = cyan
+
+[snipe_eel]
+right = ·~·~·~·~>
+left  = <~·~·~·~·
+color = white
+
+# ── 2-row ─────────────────────────────────────────────────────────────────────
+
+[anglerfish]
+right  = *-·><(°>
+right2 =    ~~~~~
+left   = <°)><·-*
+left2  = ~~~~~   
+color  = magenta
+
+[fangtooth]
+right  = ·V·><·>
+right2 =  |  ~~~
+left   = <·><·V·
+left2  = ~~~  | 
+color  = white
+
+[barreleye]
+right  = (O)(O)·>=>
+right2 =        ~~
+left   = <=<·(O)(O)
+left2  = ~~        
+color  = cyan
+
+[hatchetfish]
+right  =   /·><>
+right2 = ·/  ~~~
+left   = ><·\   
+left2  = ~~~  \·
+color  = white
+
+# ── 3-row ─────────────────────────────────────────────────────────────────────
+
+[giant_squid]
+right  = ·~=={···>
+right2 =  ~·={···>
+right3 = ·~={~~~~
+left   = <···}==~·
+left2  = <···}=·~
+left3  = ~~~~}=~·
+color  = magenta
+
+[oarfish]
+right  =  /¯¯¯¯¯¯¯¯¯¯>
+right2 = / ~~~~~~~~~~~
+right3 = ~~~~~~~~~~~~>
+left   = <¯¯¯¯¯¯¯¯¯¯\ 
+left2  = ~~~~~~~~~~~  \
+left3  = <~~~~~~~~~~~~
+color  = white
+
+[leviathan]
+right  =  ______________
+right2 = |·  ·  · °   }~=>
+right3 =  --------------
+left   =  ______________
+left2  = <=~{   °  ·  ·|
+left3  =  --------------
+color  = cyan
+
+[coelacanth]
+right  =  _/~~~~\_
+right2 = |> °·°  }=>
+right3 =  \_//\\_/
+left   =  _/~~~~\_
+left2  = <=o{ °·° <|
+left3  =  \_/\\/\_
+color  = magenta

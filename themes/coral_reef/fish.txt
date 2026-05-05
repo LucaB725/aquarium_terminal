@@ -1,0 +1,98 @@
+# coral_reef/fish.txt
+# Tropical mix: clownfish, tangs, mantas, and reef creatures
+
+# ── 1-row ─────────────────────────────────────────────────────────────────────
+
+[clownfish]
+right = ><{>
+left  = <{><
+color = yellow
+
+[tang]
+right = >==>
+left  = <==<
+color = cyan
+
+[damsel]
+right = >·>
+left  = <·<
+color = magenta
+
+[goby]
+right = »->
+left  = <-«
+color = green
+
+[wrasse]
+right = ><°}>
+left  = <{°><
+color = yellow
+
+[anemonefish]
+right = }·{>
+left  = <{·}
+color = red
+
+[parrot]
+right = >=({>
+left  = <{)=<
+color = green
+
+# ── 2-row ─────────────────────────────────────────────────────────────────────
+
+[butterflyfish]
+right  = ·><(·>
+right2 =  /||~
+left   = <·)><·
+left2  =  ~||\ 
+color  = yellow
+
+[triggerfish]
+right  = ><[=·>
+right2 =  \===
+left   = <·=]><
+left2  =  ===/
+color  = cyan
+
+[angelfish]
+right  = .><((°>
+right2 = ·  ~~~
+left   = <°))><.
+left2  = ~~~  ·
+color  = magenta
+
+[moorish_idol]
+right  =  /|><>
+right2 = · \~~>
+left   = <><|\ 
+left2  = <~~/ ·
+color  = white
+
+# ── 3-row ─────────────────────────────────────────────────────────────────────
+
+[stingray]
+right  = __/\___
+right2 = \> ° />
+right3 = ~~\/~~~
+left   = ___/\__
+left2  = <\° </ 
+left3  = ~~~\/~~
+color  = cyan
+
+[parrotfish]
+right  =  _/~~~\
+right2 = |>°  {=>
+right3 =  \___/
+left   =  /~~~\_
+left2  = <=}  °<|
+left3  =  \___/
+color  = green
+
+[napoleon]
+right  =  ______
+right2 = |>·  °}=>
+right3 =  ------
+left   =  ______
+left2  = <=o{  ·<|
+left3  =  ------
+color  = magenta

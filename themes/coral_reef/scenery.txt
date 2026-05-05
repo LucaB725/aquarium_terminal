@@ -1,0 +1,19 @@
+# coral_reef/scenery.txt — dense reef, lots of coral and seaweed
+seaweed  0.05
+seaweed  0.14
+seaweed  0.24
+seaweed  0.45
+seaweed  0.58
+seaweed  0.72
+seaweed  0.85
+seaweed  0.93
+coral    0.09
+coral    0.19
+coral    0.35
+coral    0.52
+coral    0.66
+coral    0.79
+coral    0.89
+rock     0.30
+rock     0.62
+chest    0.42

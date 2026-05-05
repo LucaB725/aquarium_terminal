@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
-aquarium.py — ASCII Aquarium, Phase 3
+aquarium.py — ASCII Aquarium, Phase 4
 • Fish sprites loaded from fish.txt  (add your own without touching this file)
 • All tunable parameters read from aquarium.cfg
 • Day / night colour cycle shifts the water from bright day-blue to deep navy
 • Full colour theming for every scene element
+• Theme packs: drop a folder into themes/ to create a new preset
 
 Controls:
   q / ESC   Quit
@@ -12,10 +13,17 @@ Controls:
   +         Add a fish
   -         Remove a fish
   r         Reload fish.txt and aquarium.cfg on the fly
+  t         Cycle to the next theme pack
+  T         Cycle to the previous theme pack
+
+CLI:
+  python aquarium.py --theme coral_reef
+  python aquarium.py --list-themes
 """
 
 from __future__ import annotations
 
+import argparse
 import curses
 import time
 import random
@@ -23,6 +31,8 @@ import math
 import os
 import sys
 from pathlib import Path
+
+from theme_loader import ThemeManager, apply_theme
 
 # ── Locate data files (same directory as this script) ─────────────────────────
 
@@ -150,8 +160,8 @@ class Config:
 
 class SpriteLibrary:
     BUILTIN = [
-        {"right": "><>",    "left": "<><",    "color_idx": 0},
-        {"right": "><((°>", "left": "<°))><", "color_idx": 3},
+        {"rows_right": ["><>"],    "rows_left": ["<><"],    "color_idx": 0},
+        {"rows_right": ["><((°>"], "rows_left": ["<°))><"], "color_idx": 3},
     ]
 
     def __init__(self, path: Path):
@@ -165,6 +175,8 @@ class SpriteLibrary:
             return
         current = {}
         color_keys = list(_COLOR_NAMES.keys())
+        # Keys accepted from file: right, right2, right3, left, left2, left3, color
+        _row_keys = {"right", "right2", "right3", "left", "left2", "left3"}
         with path.open(encoding="utf-8") as f:
             for raw in f:
                 line = raw.rstrip("\n").strip()
@@ -180,7 +192,7 @@ class SpriteLibrary:
                 key, _, val = line.partition("=")
                 key = key.strip().lower()
                 val = val.strip()
-                if key in ("right", "left"):
+                if key in _row_keys:
                     current[key] = val
                 elif key == "color" and val.lower() in color_keys:
                     current["color_idx"] = color_keys.index(val.lower()) % len(CP_FISH)
@@ -188,10 +200,26 @@ class SpriteLibrary:
             self._commit(current)
 
     def _commit(self, d: dict):
+        # Build ordered row lists: [row1, row2, row3] — row2/row3 optional
+        rows_right = [d["right"]]
+        rows_left  = [d["left"]]
+        if "right2" in d:
+            rows_right.append(d["right2"])
+        if "right3" in d:
+            rows_right.append(d.get("right3", ""))
+        if "left2" in d:
+            rows_left.append(d["left2"])
+        if "left3" in d:
+            rows_left.append(d.get("left3", ""))
+        # Pad shorter direction to the same row count (blank rows)
+        while len(rows_right) < len(rows_left):
+            rows_right.append("")
+        while len(rows_left) < len(rows_right):
+            rows_left.append("")
         self.sprites.append({
-            "right":     d["right"],
-            "left":      d["left"],
-            "color_idx": d.get("color_idx", random.randrange(len(CP_FISH))),
+            "rows_right": rows_right,
+            "rows_left":  rows_left,
+            "color_idx":  d.get("color_idx", random.randrange(len(CP_FISH))),
         })
 
     def random_sprite(self) -> dict:
@@ -249,28 +277,34 @@ class DayNight:
 class Fish:
     def __init__(self, x: float, y: int, height: int, width: int,
                  lib: SpriteLibrary, cfg: Config):
-        spr            = lib.random_sprite()
-        self.right     = spr["right"]
-        self.left      = spr["left"]
-        self.color_idx = spr["color_idx"]
-        self.direction = random.choice([-1, 1])
-        self.sprite    = self.right if self.direction == 1 else self.left
-        self.length    = max(len(self.right), len(self.left))
-        self.x         = float(x)
-        self.y         = y
-        self.speed     = random.uniform(cfg.fish_speed_min, cfg.fish_speed_max)
+        spr               = lib.random_sprite()
+        self.rows_right   = spr["rows_right"]   # list of strings, top→bottom
+        self.rows_left    = spr["rows_left"]
+        self.color_idx    = spr["color_idx"]
+        self.direction    = random.choice([-1, 1])
+        self.sprite_rows  = self.rows_right if self.direction == 1 else self.rows_left
+        self.num_rows     = len(self.rows_right)
+        # Length = widest row across both directions
+        self.length       = max(
+            max(len(r) for r in self.rows_right),
+            max(len(r) for r in self.rows_left),
+        )
+        self.x            = float(x)
+        self.y            = y
+        self.speed        = random.uniform(cfg.fish_speed_min, cfg.fish_speed_max)
 
     def update(self, height: int, width: int):
         self.x += self.speed * self.direction
         if self.direction == 1 and self.x + self.length >= width - 1:
-            self.direction = -1
-            self.sprite    = self.left
+            self.direction   = -1
+            self.sprite_rows = self.rows_left
         elif self.direction == -1 and self.x <= 1:
-            self.direction = 1
-            self.sprite    = self.right
+            self.direction   = 1
+            self.sprite_rows = self.rows_right
         if random.random() < 0.008:
             self.y += random.choice([-1, 1])
-        self.y = max(1, min(height - 4, self.y))
+        # Keep entire fish body inside the tank (account for multi-row height)
+        self.y = max(1, min(height - 2 - self.num_rows, self.y))
 
     @property
     def ix(self) -> int:
@@ -349,10 +383,12 @@ class Scenery:
     ]
     CHEST_SPRITE = ["╔══╗", "║()║", "╚══╝"]
 
-    def __init__(self, height: int, width: int):
-        self.seaweeds = []
-        self.static   = []
-        self.height = self.width = 0
+    def __init__(self, height: int, width: int,
+                 layout: list = None):
+        self.seaweeds         = []
+        self.static           = []
+        self.height           = self.width = 0
+        self._layout_override = layout   # None → use class-level LAYOUT
         self._build(height, width)
 
     def _build(self, height: int, width: int):
@@ -367,7 +403,11 @@ class Scenery:
         for x in range(1, width - 1):
             self.static.append((floor_y, x, "~", CP_SAND))
 
-        for kind, xf in self.LAYOUT:
+        # Use theme-supplied layout when available, else the class default
+        active_layout = self._layout_override if self._layout_override is not None \
+                        else self.LAYOUT
+
+        for kind, xf in active_layout:
             x = max(1, min(width - 6, 1 + int(xf * (inner_w - 1))))
 
             if kind == "seaweed":
@@ -397,6 +437,11 @@ class Scenery:
         if height != self.height or width != self.width:
             self._build(height, width)
 
+    def set_layout(self, layout: list = None):
+        """Hot-swap the scenery layout (called on theme switch) then rebuild."""
+        self._layout_override = layout
+        self._build(self.height, self.width)
+
     def update(self):
         for sw in self.seaweeds:
             sw.update()
@@ -418,18 +463,22 @@ class Scenery:
 # ══════════════════════════════════════════════════════════════════════════════
 
 class DoubleBuffer:
+    # Sentinel stored in front buffer cells that have never been drawn.
+    # Using a dedicated object means it can never equal any real (ch, attr) pair.
+    _UNDRAWN = object()
+
     def __init__(self, height: int, width: int):
         self.h = height
         self.w = width
         self._blank = (" ", 0)
-        self.front = [[self._blank] * width for _ in range(height)]
-        self.back  = [[self._blank] * width for _ in range(height)]
+        self.front = [[self._UNDRAWN] * width for _ in range(height)]
+        self.back  = [[self._blank]   * width for _ in range(height)]
 
     def resize(self, height: int, width: int):
         self.h = height
         self.w = width
-        self.front = [[self._blank] * width for _ in range(height)]
-        self.back  = [[self._blank] * width for _ in range(height)]
+        self.front = [[self._UNDRAWN] * width for _ in range(height)]
+        self.back  = [[self._blank]   * width for _ in range(height)]
 
     def clear(self):
         blank = self._blank
@@ -441,9 +490,24 @@ class DoubleBuffer:
         if 0 <= y < self.h and 0 <= x < self.w:
             self.back[y][x] = (ch, attr)
 
-    def puts(self, y: int, x: int, text: str, attr: int = 0):
+    def puts(self, y: int, x: int, text: str, attr: int = 0,
+             transparent: bool = False):
+        """Write a string into the back buffer.
+
+        If transparent=True (used by fish sprites) space characters are skipped
+        so the water background shows through the fish body.
+        """
         for i, ch in enumerate(text):
+            if transparent and ch == " ":
+                continue
             self.put(y, x + i, ch, attr)
+
+    def invalidate(self):
+        """Reset the front buffer so the next flush redraws every cell.
+        Call this whenever stdscr.clear() is called so the diff stays in sync."""
+        for row in self.front:
+            for i in range(len(row)):
+                row[i] = self._UNDRAWN
 
     def flush(self, stdscr):
         for y in range(self.h):
@@ -480,18 +544,21 @@ def draw_border(buf: DoubleBuffer, attr: int):
 
 def draw_fish(buf: DoubleBuffer, fish: Fish):
     attr = curses.color_pair(CP_FISH[fish.color_idx]) | curses.A_BOLD
-    buf.puts(fish.y, fish.ix, fish.sprite, attr)
+    for i, row in enumerate(fish.sprite_rows):
+        if row:
+            buf.puts(fish.y + i, fish.ix, row, attr, transparent=True)
 
 
 def draw_bubble(buf: DoubleBuffer, bubble: Bubble):
     buf.put(bubble.iy, bubble.ix, bubble.char, curses.color_pair(CP_BUBBLE))
 
 
-def draw_status(buf: DoubleBuffer, fish_list: list, paused: bool, dn: DayNight):
+def draw_status(buf: DoubleBuffer, fish_list: list, paused: bool,
+                dn: DayNight, theme_label: str = "default"):
     attr  = curses.color_pair(CP_STATUS)
     phase = "night" if dn.phase() > 0.5 else "day"
     msg   = (f"  fish:{len(fish_list)}  |  +/- add/remove  |  "
-             f"p pause  |  r reload  |  q quit  |  {phase}")
+             f"p pause  |  t theme:{theme_label}  |  r reload  |  q quit  |  {phase}")
     if paused:
         msg = "  PAUSED  " + msg
     buf.puts(buf.h - 1, 0, msg[:buf.w], attr)
@@ -507,7 +574,8 @@ def init_colors(cfg: Config, dn: DayNight):
 
     if not (dn.enabled and dn._extended):
         curses.init_pair(CP_WATER, curses.COLOR_CYAN, curses.COLOR_BLUE)
-
+    
+    bg_color = dn._slot_bg if (dn.enabled and dn._extended) else curses.COLOR_BLUE
     for i, fg in enumerate(_FISH_PALETTE):
         curses.init_pair(CP_FISH[i], fg, curses.COLOR_BLUE)
 
@@ -524,6 +592,29 @@ def init_colors(cfg: Config, dn: DayNight):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+#  Theme application helper
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _build_active_config(base_cfg_path: Path,
+                         base_fish_path: Path,
+                         theme_mgr: ThemeManager) -> tuple:
+    """
+    Return (cfg, lib, fish_path, scenery_layout) with the current theme
+    merged on top of the base files.
+    """
+    cfg  = Config(base_cfg_path)
+    pack = theme_mgr.current()
+    apply_theme(cfg, pack)                          # overrides cfg in-place
+
+    fish_path = pack.fish_path if (pack and pack.fish_path) else base_fish_path
+    lib       = SpriteLibrary(fish_path)
+
+    layout    = pack.layout if pack else None       # None → Scenery uses default
+
+    return cfg, lib, layout
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 #  Spawn helpers
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -534,7 +625,7 @@ def spawn_fish(height: int, width: int, lib: SpriteLibrary, cfg: Config) -> Fish
 
 
 def maybe_spawn_bubble(fish_list: list, bubbles: list,
-                        height: int, width: int, floor_y: int, cfg: Config):
+                       height: int, width: int, floor_y: int, cfg: Config):
     for fish in fish_list:
         if random.random() < cfg.bubble_fish_chance:
             bx = fish.ix + random.randint(0, max(1, fish.length - 1))
@@ -549,19 +640,32 @@ def maybe_spawn_bubble(fish_list: list, bubbles: list,
 #  Main loop
 # ══════════════════════════════════════════════════════════════════════════════
 
-def main(stdscr):
+def main(stdscr, initial_theme: str = ""):
     curses.curs_set(0)
     stdscr.nodelay(True)
     stdscr.keypad(True)
 
-    cfg = Config(CFG_FILE)
-    lib = SpriteLibrary(FISH_FILE)
-    dn  = DayNight(cfg)
+    # ── Theme manager ─────────────────────────────────────────────────────────
+    theme_mgr = ThemeManager()
+
+    if initial_theme:
+        if not theme_mgr.select(initial_theme):
+            # Theme not found — write a warning, continue with default
+            stdscr.addstr(0, 0, f"Warning: theme '{initial_theme}' not found. "
+                                 "Press any key to continue with default.")
+            stdscr.nodelay(False)
+            stdscr.getch()
+            stdscr.nodelay(True)
+            stdscr.clear()
+
+    # ── Initial config + sprites (with theme applied) ─────────────────────────
+    cfg, lib, layout = _build_active_config(CFG_FILE, FISH_FILE, theme_mgr)
+    dn               = DayNight(cfg)
     init_colors(cfg, dn)
 
     height, width = stdscr.getmaxyx()
     buf     = DoubleBuffer(height, width)
-    scenery = Scenery(height, width)
+    scenery = Scenery(height, width, layout=layout)
 
     fish_list = [spawn_fish(height, width, lib, cfg) for _ in range(cfg.fish_start)]
     bubbles   = []
@@ -573,20 +677,55 @@ def main(stdscr):
     while True:
         # ── Input ─────────────────────────────────────────────────────────────
         key = stdscr.getch()
+
         if key in (ord("q"), ord("Q"), 27):
             break
+
         elif key in (ord("p"), ord("P")):
             paused = not paused
+
         elif key == ord("+") and len(fish_list) < cfg.fish_max:
             fish_list.append(spawn_fish(height, width, lib, cfg))
+
         elif key == ord("-") and fish_list:
             fish_list.pop()
+
         elif key in (ord("r"), ord("R")):
-            cfg        = Config(CFG_FILE)
-            lib        = SpriteLibrary(FISH_FILE)
-            dn         = DayNight(cfg)
-            frame_time = 1.0 / max(1, min(60, cfg.fps))
+            # Hot-reload base files and re-apply current theme
+            cfg, lib, layout = _build_active_config(CFG_FILE, FISH_FILE, theme_mgr)
+            dn               = DayNight(cfg)
+            frame_time       = 1.0 / max(1, min(60, cfg.fps))
             init_colors(cfg, dn)
+            scenery.set_layout(layout)
+
+        elif key == ord("t"):
+            # Advance to next theme
+            theme_mgr.next()
+            cfg, lib, layout = _build_active_config(CFG_FILE, FISH_FILE, theme_mgr)
+            dn               = DayNight(cfg)
+            frame_time       = 1.0 / max(1, min(60, cfg.fps))
+            init_colors(cfg, dn)
+            scenery.set_layout(layout)
+            # Respawn fish so they pick up the new sprites
+            fish_list = [spawn_fish(height, width, lib, cfg)
+                         for _ in range(len(fish_list))]
+            bubbles   = []
+            stdscr.clear()
+            buf.invalidate()
+
+        elif key == ord("T"):
+            # Step backward through themes
+            theme_mgr.prev()
+            cfg, lib, layout = _build_active_config(CFG_FILE, FISH_FILE, theme_mgr)
+            dn               = DayNight(cfg)
+            frame_time       = 1.0 / max(1, min(60, cfg.fps))
+            init_colors(cfg, dn)
+            scenery.set_layout(layout)
+            fish_list = [spawn_fish(height, width, lib, cfg)
+                         for _ in range(len(fish_list))]
+            bubbles   = []
+            stdscr.clear()
+            buf.invalidate()
 
         # ── Resize ────────────────────────────────────────────────────────────
         new_h, new_w = stdscr.getmaxyx()
@@ -595,6 +734,7 @@ def main(stdscr):
             buf.resize(height, width)
             scenery.rebuild_if_resized(height, width)
             stdscr.clear()
+            buf.invalidate()
 
         floor_y = height - 2
 
@@ -629,7 +769,8 @@ def main(stdscr):
         for fish in fish_list:
             draw_fish(buf, fish)
         draw_border(buf, border_attr)
-        draw_status(buf, fish_list, paused, dn)
+        draw_status(buf, fish_list, paused, dn,
+                    theme_label=theme_mgr.current_label())
         buf.flush(stdscr)
         stdscr.refresh()
 
@@ -638,9 +779,47 @@ def main(stdscr):
 #  Entry point
 # ══════════════════════════════════════════════════════════════════════════════
 
+def _parse_args():
+    parser = argparse.ArgumentParser(
+        description="ASCII Aquarium — a peaceful terminal fish tank.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "Controls while running:\n"
+            "  q / ESC  quit          p  pause\n"
+            "  +  add fish            -  remove fish\n"
+            "  t  next theme          T  previous theme\n"
+            "  r  reload config files"
+        ),
+    )
+    parser.add_argument(
+        "--theme", metavar="NAME",
+        help="Start with a specific theme (e.g. coral_reef).",
+    )
+    parser.add_argument(
+        "--list-themes", action="store_true",
+        help="Print available theme names and exit.",
+    )
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
+    args = _parse_args()
+
+    if args.list_themes:
+        mgr    = ThemeManager()
+        themes = mgr.names()
+        if themes:
+            print("Available themes:")
+            for name in themes:
+                pack = mgr.select(name)
+                blurb = f"  — {pack.blurb}" if pack and pack.blurb else ""
+                print(f"  {name}{blurb}")
+        else:
+            print("No themes found. Create a folder inside themes/ to get started.")
+        sys.exit(0)
+
     try:
-        curses.wrapper(main)
+        curses.wrapper(main, initial_theme=args.theme or "")
     except KeyboardInterrupt:
         pass
     print("Thanks for visiting the aquarium! 🐟")

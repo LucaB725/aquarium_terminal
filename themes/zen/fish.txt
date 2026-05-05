@@ -1,0 +1,50 @@
+# zen/fish.txt
+# Varying sizes of Koi and meditative forms — slow, clean lines, all white or cyan
+
+# ── 1-row (Fry & Small) ───────────────────────────────────────────────────────
+
+[koi_fry]
+right = ><>
+left  = <><
+color = white
+
+[koi_small]
+right = ·><(·>
+left  = <·)><·
+color = cyan
+
+# ── 2-row (Medium & Long) ─────────────────────────────────────────────────────
+
+[koi_medium]
+right  = ·><(·°>
+right2 =  ~~~~~~
+left   = <°·)><·
+left2  = ~~~~~~ 
+color  = white
+
+[koi_long]
+right  = °><(·  °>
+right2 =  °~~~~~~~
+left   = <°  ·)><°
+left2  = ~~~~~~~° 
+color  = cyan
+
+# ── 3-row (Grand & Imperial) ──────────────────────────────────────────────────
+
+[koi_grand]
+right  =  _/~~~~~   
+right2 = |·  ·  }·=>
+right3 =  \_~~~~~   
+left   =    ~~~~~\_ 
+left2  = <=·{  ·  ·|
+left3  =    ~~~~~/_ 
+color  = white
+
+[koi_imperial]
+right  =  _/\_____    
+right2 = |>·°·    }·=>
+right3 =  \/~~~~~~    
+left   =     _____/\_ 
+left2  = <=·{    ·°·<|
+left3  =     ~~~~~~\/ 
+color  = cyan
