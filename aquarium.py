@@ -636,7 +636,7 @@ def init_colors(cfg: Config, dn: DayNight):
     
     bg_color = dn._slot_bg if (dn.enabled and dn._extended) else curses.COLOR_BLUE
     for i, fg in enumerate(_FISH_PALETTE):
-        curses.init_pair(CP_FISH[i], fg, curses.COLOR_BLUE)
+        curses.init_pair(CP_FISH[i], fg, bg_color)
 
     curses.init_pair(CP_BORDER,  _named_color(cfg.color_border),  curses.COLOR_BLUE)
     curses.init_pair(CP_BUBBLE,  _named_color(cfg.color_bubble),  curses.COLOR_BLUE)
@@ -756,6 +756,11 @@ def main(stdscr, initial_theme: str = ""):
             frame_time       = 1.0 / max(1, min(60, cfg.fps))
             init_colors(cfg, dn)
             scenery.set_layout(layout)
+            fish_list = [spawn_fish(height, width, lib, cfg)
+                         for _ in range(len(fish_list))]
+            bubbles   = []
+            stdscr.clear()
+            buf.invalidate()
 
         elif key == ord("t"):
             # Advance to next theme
@@ -802,7 +807,7 @@ def main(stdscr, initial_theme: str = ""):
         delta = now - last_frame
         if delta < frame_time:
             time.sleep(frame_time - delta)
-        last_frame = time.monotonic()
+        last_frame += frame_time
 
         # ── Update ────────────────────────────────────────────────────────────
         if not paused:

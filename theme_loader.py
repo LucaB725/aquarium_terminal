@@ -226,6 +226,8 @@ class ThemeManager:
         # -1 wraps to the last theme (not to default), so we need explicit handling
         if self._index <= 0:
             self._index = len(self._packs) - 1
+        elif self._index == 0:
+            self._index = -1
         else:
             self._index -= 1
         return self.current()
